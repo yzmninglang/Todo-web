@@ -6,5 +6,6 @@ CREATE TABLE todos (
     description TEXT,
     image_path TEXT,
     completed BOOLEAN NOT NULL DEFAULT 0,
+    completed_at TIMESTAMP,
     created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

@@ -45,20 +45,21 @@
             </form>
         </section>
 
-        <section class="todo-list">
-            <h2>Your Todos</h2>
-            {% if todos %}
-                {% for todo in todos %}
-                    <div class="todo-item {% if todo.completed %}completed{% endif %}">
+        <!-- Incomplete Tasks Section -->
+        <section class="todo-list incomplete-list">
+            <h2>Current Tasks</h2>
+            {% if incomplete_todos %}
+                {% for todo in incomplete_todos %}
+                    <div class="todo-item">
                         <div class="todo-header">
                             <div class="todo-title">
                                 <h3>{{ todo.title }}</h3>
-                                <span class="date">{{ todo.created.strftime('%Y-%m-%d %H:%M') }}</span>
+                                <span class="date">Created: {{ todo.created.strftime('%Y-%m-%d %H:%M') }}</span>
                             </div>
                             <div class="todo-actions">
                                 <form action="{{ url_for('update_todo', id=todo.id) }}" method="post">
                                     <label class="checkbox-container">
-                                        <input type="checkbox" name="completed" {% if todo.completed %}checked{% endif %} onChange="this.form.submit()">
+                                        <input type="checkbox" name="completed" onChange="this.form.submit()">
                                         <span class="checkmark"></span>
                                     </label>
                                 </form>
@@ -84,8 +85,121 @@
                     </div>
                 {% endfor %}
             {% else %}
-                <p class="empty-state">No todos yet. Add one above!</p>
+                <p class="empty-state">No tasks to do. Time to relax!</p>
             {% endif %}
+        </section>
+
+        <!-- Completed Tasks Section -->
+        <section class="completed-section">
+            <h2>Completed Tasks</h2>
+            
+            <div class="calendar-controls">
+                <div class="view-selector">
+                    <a href="{{ url_for('index', view='daily', date=selected_date.strftime('%Y-%m-%d')) }}" class="calendar-btn {% if view_type == 'daily' %}active{% endif %}">Daily</a>
+                    <a href="{{ url_for('index', view='weekly', date=selected_date.strftime('%Y-%m-%d')) }}" class="calendar-btn {% if view_type == 'weekly' %}active{% endif %}">Weekly</a>
+                </div>
+                
+                <div class="date-navigator">
+                    <a href="{{ url_for('index', view=view_type, date=prev_date.strftime('%Y-%m-%d')) }}" class="calendar-nav-btn">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                    <span class="current-date">
+                        {% if view_type == 'daily' %}
+                            {{ selected_date.strftime('%B %d, %Y') }}
+                        {% else %}
+                            Week of {{ get_week_dates(selected_date)[0].strftime('%b %d') }} - {{ get_week_dates(selected_date)[1].strftime('%b %d, %Y') }}
+                        {% endif %}
+                    </span>
+                    <a href="{{ url_for('index', view=view_type, date=next_date.strftime('%Y-%m-%d')) }}" class="calendar-nav-btn">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Mini Calendar -->
+            <div class="mini-calendar">
+                <div class="calendar-header">
+                    {{ month_name }} {{ current_year }}
+                </div>
+                <table class="calendar-table">
+                    <tr>
+                        <th>Mon</th>
+                        <th>Tue</th>
+                        <th>Wed</th>
+                        <th>Thu</th>
+                        <th>Fri</th>
+                        <th>Sat</th>
+                        <th>Sun</th>
+                    </tr>
+                    {% for week in calendar_data %}
+                    <tr>
+                        {% for day in week %}
+                        {% if day == 0 %}
+                        <td></td>
+                        {% else %}
+                        <td>
+                            <a href="{{ url_for('index', view='daily', date='{}-{}-{}'.format(current_year, current_month, day)) }}" 
+                               class="calendar-day {% if selected_date.day == day and selected_date.month == current_month and selected_date.year == current_year %}selected{% endif %}">
+                                {{ day }}
+                            </a>
+                        </td>
+                        {% endif %}
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+
+            <!-- Completed Tasks List -->
+            <div class="todo-list completed-list">
+                {% if completed_todos %}
+                    {% for todo in completed_todos %}
+                        <div class="todo-item completed">
+                            <div class="todo-header">
+                                <div class="todo-title">
+                                    <h3>{{ todo.title }}</h3>
+                                    <span class="date">
+                                        Completed: {{ todo.completed_at.strftime('%Y-%m-%d %H:%M') }}
+                                    </span>
+                                </div>
+                                <div class="todo-actions">
+                                    <form action="{{ url_for('update_todo', id=todo.id) }}" method="post">
+                                        <label class="checkbox-container">
+                                            <input type="checkbox" name="completed" checked onChange="this.form.submit()">
+                                            <span class="checkmark"></span>
+                                        </label>
+                                    </form>
+                                    <form action="{{ url_for('delete_todo', id=todo.id) }}" method="post" onsubmit="return confirm('Are you sure you want to delete this todo?');">
+                                        <button type="submit" class="btn-delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            
+                            {% if todo.description %}
+                                <div class="todo-description">
+                                    {{ todo.description }}
+                                </div>
+                            {% endif %}
+                            
+                            {% if todo.image_path %}
+                                <div class="todo-image">
+                                    <img src="{{ url_for('static', filename='uploads/' + todo.image_path) }}" alt="Todo image">
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="empty-state">
+                        {% if view_type == 'daily' %}
+                            No tasks completed on {{ selected_date.strftime('%B %d, %Y') }}.
+                        {% else %}
+                            No tasks completed during this week.
+                        {% endif %}
+                    </p>
+                {% endif %}
+            </div>
         </section>
     </div>
 

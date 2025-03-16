@@ -1,8 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, g
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
+import calendar
 
 # Configuration
 app = Flask(__name__)
@@ -42,13 +43,79 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
+def get_week_dates(date):
+    """Get start and end dates for the week containing the given date"""
+    start_of_week = date - timedelta(days=date.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
+    return start_of_week, end_of_week
+
+# Make helper functions available to templates
+@app.context_processor
+def utility_processor():
+    return dict(get_week_dates=get_week_dates)
+
 # Routes
 @app.route('/')
 def index():
+    view_type = request.args.get('view', 'daily')
+    selected_date = request.args.get('date')
+    
+    # Default to today if no date is selected
+    if selected_date:
+        try:
+            selected_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
+        except ValueError:
+            selected_date = datetime.now().date()
+    else:
+        selected_date = datetime.now().date()
+    
     db = get_db()
-    todos = db.execute('SELECT * FROM todos ORDER BY created DESC').fetchall()
-    return render_template('index.html', todos=todos)
+    
+    # Get incomplete todos
+    incomplete_todos = db.execute(
+        'SELECT * FROM todos WHERE completed = 0 ORDER BY created DESC'
+    ).fetchall()
+    
+    # Get completed todos based on view type
+    if view_type == 'daily':
+        completed_todos = db.execute(
+            'SELECT * FROM todos WHERE completed = 1 AND date(completed_at) = date(?) ORDER BY completed_at DESC',
+            (selected_date,)
+        ).fetchall()
+    elif view_type == 'weekly':
+        start_date, end_date = get_week_dates(selected_date)
+        completed_todos = db.execute(
+            'SELECT * FROM todos WHERE completed = 1 AND date(completed_at) BETWEEN date(?) AND date(?) ORDER BY completed_at DESC',
+            (start_date, end_date)
+        ).fetchall()
+    
+    # Calculate previous and next days/weeks for navigation
+    if view_type == 'daily':
+        prev_date = selected_date - timedelta(days=1)
+        next_date = selected_date + timedelta(days=1)
+    else:  # weekly
+        prev_date = selected_date - timedelta(weeks=1)
+        next_date = selected_date + timedelta(weeks=1)
+    
+    # Generate calendar data for the current month
+    cal = calendar.monthcalendar(selected_date.year, selected_date.month)
+    month_name = calendar.month_name[selected_date.month]
+    
+    return render_template(
+        'index.html', 
+        incomplete_todos=incomplete_todos,
+        completed_todos=completed_todos,
+        selected_date=selected_date,
+        view_type=view_type,
+        prev_date=prev_date,
+        next_date=next_date,
+        calendar_data=cal,
+        month_name=month_name,
+        current_year=selected_date.year,
+        current_month=selected_date.month
+    )
 
+# Rest of the code remains the same...
 @app.route('/create', methods=['POST'])
 def create_todo():
     title = request.form.get('title')
@@ -83,10 +150,18 @@ def update_todo(id):
     completed = request.form.get('completed') == 'on'
     
     db = get_db()
-    db.execute(
-        'UPDATE todos SET completed = ? WHERE id = ?',
-        (completed, id)
-    )
+    if completed:
+        # If marked as completed, set completed_at timestamp
+        db.execute(
+            'UPDATE todos SET completed = ?, completed_at = ? WHERE id = ?',
+            (completed, datetime.now(), id)
+        )
+    else:
+        # If unmarked, clear completed_at timestamp
+        db.execute(
+            'UPDATE todos SET completed = ?, completed_at = NULL WHERE id = ?',
+            (completed, id)
+        )
     db.commit()
     flash('Todo updated successfully!')
     return redirect(url_for('index'))
