@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS todos;
+
+CREATE TABLE todos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT,
+    image_path TEXT,
+    completed BOOLEAN NOT NULL DEFAULT 0,
+    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
