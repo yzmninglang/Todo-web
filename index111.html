@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="add-task">
+    <h2>Add New Task</h2>
+    <form action="{{ url_for('add_task') }}" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+            <input type="text" name="title" placeholder="Task title" required>
+        </div>
+        <div class="form-group">
+            <textarea name="description" placeholder="Description (optional)"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="image">Attach Image:</label>
+            <input type="file" name="image" id="image" accept="image/*">
+        </div>
+        <button type="submit" class="btn-add">Add Task</button>
+    </form>
+</section>
+
+<section class="current-tasks">
+    <h2>Current Tasks</h2>
+    {% if incomplete_tasks %}
+    <ul class="task-list">
+        {% for task in incomplete_tasks %}
+        <li class="task-item" data-task-id="{{ task['id'] }}">
+            <div class="task-header">
+                <div class="task-title">{{ task['title'] }}</div>
+                <div class="task-actions">
+                    <form action="{{ url_for('complete_task', task_id=task['id']) }}" method="post" class="inline-form">
+                        <button type="submit" class="btn-complete"><i class="fas fa-check"></i></button>
+                    </form>
+                    <form action="{{ url_for('delete_task', task_id=task['id']) }}" method="post" class="inline-form">
+                        <button type="submit" class="btn-delete"><i class="fas fa-trash"></i></button>
+                    </form>
+                    <span class="btn-expand"><i class="fas fa-chevron-down"></i></span>
+                </div>
+            </div>
+            
+            <div class="task-details" style="display: none;">
+                {% if task['description'] %}
+                <div class="task-description">{{ task['description'] }}</div>
+                {% endif %}
+                
+                {% if task['image_path'] %}
+                <div class="task-image">
+                    <img src="{{ url_for('static', filename=task['image_path']) }}" alt="Task image">
+                </div>
+                {% endif %}
+                
+                <div class="task-date">
+                    Created: {{ task['created_at'].split('.')[0].replace('T', ' ') if 'T' in task['created_at'] else task['created_at'] }}
+                </div>
+                
+                <div class="subtasks">
+                    <h4>Subtasks</h4>
+                    <div class="subtask-list" id="subtask-list-{{ task['id'] }}">
+                        <div class="loading">Loading subtasks...</div>
+                    </div>
+                    
+                    <form class="add-subtask-form" data-task-id="{{ task['id'] }}">
+                        <input type="text" name="title" placeholder="New subtask" required>
+                        <button type="submit" class="btn-add-small">Add</button>
+                    </form>
+                </div>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="no-tasks">No current tasks. Add one above!</p>
+    {% endif %}
+</section>
+
+<section class="calendar-view">
+    <h2>Calendar View</h2>
+    <div class="calendar-navigation">
+        <a href="{{ url_for('calendar', view='daily') }}" class="btn-calendar">Daily View</a>
+        <a href="{{ url_for('calendar', view='weekly') }}" class="btn-calendar">Weekly View</a>
+        <a href="{{ url_for('calendar', view='monthly') }}" class="btn-calendar">Monthly View</a>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Toggle task details
+        $('.btn-expand').click(function() {
+            const taskItem = $(this).closest('.task-item');
+            const taskDetails = taskItem.find('.task-details');
+            const taskId = taskItem.data('task-id');
+            
+            taskDetails.slideToggle();
+            $(this).find('i').toggleClass('fa-chevron-down fa-chevron-up');
+            
+            // Load subtasks if expanding
+            if (taskDetails.is(':visible')) {
+                loadSubtasks(taskId);
+            }
+        });
+        
+        // Add subtask
+        $('.add-subtask-form').submit(function(e) {
+            e.preventDefault();
+            const form = $(this);
+            const taskId = form.data('task-id');
+            const title = form.find('input[name="title"]').val();
+            
+            $.post('/add_subtask/' + taskId, { title: title }, function() {
+                form.find('input[name="title"]').val('');
+                loadSubtasks(taskId);
+            });
+        });
+        
+        // Function to load subtasks
+        function loadSubtasks(taskId) {
+            const subtaskList = $('#subtask-list-' + taskId);
+            
+            $.getJSON('/get_subtasks/' + taskId, function(data) {
+                subtaskList.empty();
+                
+                if (data.length === 0) {
+                    subtaskList.html('<p class="no-subtasks">No subtasks yet</p>');
+                    return;
+                }
+                
+                const ul = $('<ul class="subtask-list"></ul>');
+                
+                data.forEach(function(subtask) {
+                    const li = $('<li class="subtask-item"></li>');
+                    
+                    // Subtask content
+                    const content = $('<div class="subtask-content"></div>');
+                    content.append('<span class="subtask-title ' + (subtask.is_completed ? 'completed' : '') + '">' + subtask.title + '</span>');
+                    
+                    // Subtask date info
+                    const dateInfo = $('<div class="subtask-date"></div>');
+                    dateInfo.text('Created: ' + formatDateTime(subtask.created_at));
+                    
+                    if (subtask.completed_at) {
+                        dateInfo.append('<br>Completed: ' + formatDateTime(subtask.completed_at));
+                    }
+                    
+                    content.append(dateInfo);
+                    li.append(content);
+                    
+                    // Subtask actions
+                    const actions = $('<div class="subtask-actions"></div>');
+                    
+                    if (!subtask.is_completed) {
+                        const completeForm = $('<form class="inline-form"></form>');
+                        completeForm.append('<button type="submit" class="btn-complete-small"><i class="fas fa-check"></i></button>');
+                        completeForm.on('submit', function(e) {
+                            e.preventDefault();
+                            $.post('/complete_subtask/' + subtask.id, function() {
+                                loadSubtasks(taskId);
+                            });
+                        });
+                        actions.append(completeForm);
+                    }
+                    
+                    const deleteForm = $('<form class="inline-form"></form>');
+                    deleteForm.append('<button type="submit" class="btn-delete-small"><i class="fas fa-trash"></i></button>');
+                    deleteForm.on('submit', function(e) {
+                        e.preventDefault();
+                        $.post('/delete_subtask/' + subtask.id, function() {
+                            loadSubtasks(taskId);
+                        });
+                    });
+                    actions.append(deleteForm);
+                    
+                    li.append(actions);
+                    ul.append(li);
+                });
+                
+                subtaskList.append(ul);
+            });
+        }
+        
+        // Helper function to format date and time
+        function formatDateTime(dateTimeStr) {
+            if (!dateTimeStr) return '';
+            
+            // Handle different datetime formats
+            let formattedStr = dateTimeStr;
+            if (dateTimeStr.includes('T')) {
+                formattedStr = dateTimeStr.split('.')[0].replace('T', ' ');
+            }
+            
+            return formattedStr;
+        }
+    });
+</script>
+{% endblock %}

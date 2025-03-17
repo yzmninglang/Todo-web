@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="calendar-header">
+    <h2>{{ view_type|capitalize }} View</h2>
+    <div class="calendar-navigation">
+        <!-- <a href="{{ url_for('calendar', view='daily') }}" class="btn-calendar {% if view_type == 'daily' %}active{% endif %}">Daily</a> -->
+        <a href="{{ url_for('calendar', view='weekly') }}" class="btn-calendar {% if view_type == 'weekly' %}active{% endif %}">Weekly</a>
+        <a href="{{ url_for('calendar', view='monthly') }}" class="btn-calendar {% if view_type == 'monthly' %}active{% endif %}">Monthly</a>
+    </div>
+    
+    <div class="date-navigation">
+        {% if view_type == 'daily' %}
+            {% set prev_date = selected_date.replace(day=selected_date.day-1) %}
+            {% set next_date = selected_date.replace(day=selected_date.day+1) %}
+            <a href="{{ url_for('calendar', view=view_type, date=prev_date.strftime('%Y-%m-%d')) }}" class="btn-nav">Previous Day</a>
+            <span class="current-date">{{ selected_date.strftime('%B %d, %Y') }}</span>
+            <a href="{{ url_for('calendar', view=view_type, date=next_date.strftime('%Y-%m-%d')) }}" class="btn-nav">Next Day</a>
+        {% elif view_type == 'weekly' %}
+
+            <a href="{{ url_for('calendar', view=view_type, date=prev_week.strftime('%Y-%m-%d')) }}" class="btn-nav">Previous Week</a>
+            <span class="current-date">{{ week_start.strftime('%b %d') }} - {{ week_end.strftime('%b %d, %Y') }}</span>
+            <a href="{{ url_for('calendar', view=view_type, date=next_week.strftime('%Y-%m-%d')) }}" class="btn-nav">Next Week</a>
+        {% elif view_type == 'monthly' %}
+            {% set month_start = selected_date.replace(day=1) %}
+            {% set prev_month = month_start.replace(month=1 if month_start.month==1 else month_start.month-1, year=month_start.year-1 if month_start.month==1 else month_start.year) %}
+            {% set next_month = month_start.replace(month=12 if month_start.month==12 else month_start.month+1, year=month_start.year+1 if month_start.month==12 else month_start.year) %}
+            <a href="{{ url_for('calendar', view=view_type, date=prev_month.strftime('%Y-%m-%d')) }}" class="btn-nav">Previous Month</a>
+            <span class="current-date">{{ month_start.strftime('%B %Y') }}</span>
+            <a href="{{ url_for('calendar', view=view_type, date=next_month.strftime('%Y-%m-%d')) }}" class="btn-nav">Next Month</a>
+        {% endif %}
+    </div>
+</section>
+
+{% if view_type == 'monthly' %}
+<section class="calendar-grid">
+    <div class="calendar-month">
+        <div class="weekdays">
+            <div>Mon</div>
+            <div>Tue</div>
+            <div>Wed</div>
+            <div>Thu</div>
+            <div>Fri</div>
+            <div>Sat</div>
+            <div>Sun</div>
+        </div>
+        
+        <div class="days">
+            {% set month_start = selected_date.replace(day=1) %}
+            {% set month_days = (month_start.replace(month=month_start.month%12+1, year=month_start.year+(month_start.month==12)) - month_start).days %}
+            {% set first_weekday = month_start.weekday() %}
+            
+            {# Add empty cells for days before the 1st of the month #}
+            {% for _ in range(first_weekday) %}
+                <div class="day empty"></div>
+            {% endfor %}
+            
+            {# Fill in the days of the month #}
+            {% for day in range(1, month_days + 1) %}
+                {% set current_day = month_start.replace(day=day) %}
+                {% set day_str = current_day.strftime('%Y-%m-%d') %}
+                
+                <div class="day {% if current_day.date() == selected_date.date() %}selected{% endif %}">
+                    <a href="{{ url_for('calendar', view=view_type, date=day_str) }}" class="day-link">
+                        <span class="day-number">{{ day }}</span>
+                        
+                        {% if day_str in completed_days %}
+                            <span class="dot completed" title="Tasks completed on this day"></span>
+                        {% endif %}
+                        
+                        {% if day_str in created_days %}
+                            <span class="dot created" title="Tasks created on this day"></span>
+                        {% endif %}
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- {% if view_type == 'daily' %}
+<section class="calendar-daily">
+    <div class="daily-header">
+        <h3>{{ selected_date.strftime('%B %d, %Y') }}</h3>
+    </div>
+
+    <div class="daily-tasks">
+        {% if selected_date.strftime('%Y-%m-%d') in completed_days or selected_date.strftime('%Y-%m-%d') in created_days %}
+            <ul class="task-list">
+                {% if selected_date.strftime('%Y-%m-%d') in created_days %}
+                    <li class="created-task">
+                        <i class="fas fa-plus-circle"></i> Tasks created:
+                        <ul>
+                            {% for task in created_days[selected_date.strftime('%Y-%m-%d')] %}
+                                <li>{{ task.title }}</li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                {% endif %}
+
+                {% if selected_date.strftime('%Y-%m-%d') in completed_days %}
+                    <li class="completed-task">
+                        <i class="fas fa-check-circle"></i> Tasks completed:
+                        <ul>
+                            {% for task in completed_days[selected_date.strftime('%Y-%m-%d')] %}
+                                <li>{{ task.title }}</li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                {% endif %}
+            </ul>
+        {% else %}
+            <p>No tasks created or completed on this day.</p>
+        {% endif %}
+    </div>
+</section>
+{% endif %} -->
+
+
+
+
+{% if view_type == 'weekly' %}
+<section class="calendar-grid">
+    <div class="calendar-week">
+        <div class="weekdays">
+            <div>Mon</div>
+            <div>Tue</div>
+            <div>Wed</div>
+            <div>Thu</div>
+            <div>Fri</div>
+            <div>Sat</div>
+            <div>Sun</div>
+        </div>
+
+        <div class="days">
+            {% for day in week_days %}
+                <div class="day {% if day == selected_date.strftime('%Y-%m-%d') %}selected{% endif %}">
+                    <a href="{{ url_for('calendar', view=view_type, date=day) }}" class="day-link">
+                        <span class="day-number">{{day.split('-')[2]}}</span> 
+                    
+                    {% if day in completed_days %}
+                        <span class="dot completed" title="Tasks completed on this day"></span>
+                    {% endif %}
+
+                    {% if day in created_days %}
+                        <span class="dot created" title="Tasks created on this day"></span>
+                    {% endif %}
+                </a>
+
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- <section class="current-tasks">
+    <h3>Created Tasks</h3>
+    {% if incomplete_tasks %}
+    <ul class="task-list">
+        {% for task in incomplete_tasks %}
+        <li class="task-item" data-task-id="{{ task['id'] }}">
+            <div class="task-header">
+                <div class="task-title">{{ task['title'] }}</div>
+                <div class="task-actions">
+                    <form action="{{ url_for('complete_task', task_id=task['id']) }}" method="post" class="inline-form">
+                        <button type="submit" class="btn-complete"><i class="fas fa-check"></i></button>
+                    </form>
+                    <form action="{{ url_for('delete_task', task_id=task['id']) }}" method="post" class="inline-form">
+                        <button type="submit" class="btn-delete"><i class="fas fa-trash"></i></button>
+                    </form>
+                    <span class="btn-expand"><i class="fas fa-chevron-down"></i></span>
+                </div>
+            </div>
+            
+            <div class="task-details" style="display: none;">
+                {% if task['description'] %}
+                <div class="task-description">{{ task['description'] }}</div>
+                {% endif %}
+                
+                {% if task['image_path'] %}
+                <div class="task-image">
+                    <img src="{{ url_for('static', filename=task['image_path']) }}" alt="Task image">
+                </div>
+                {% endif %}
+                
+                <div class="task-date">
+                    Created: {{ task['created_at'].split('.')[0].replace('T', ' ') if 'T' in task['created_at'] else task['created_at'] }}
+                </div>
+                
+                <div class="subtasks">
+                    <h4>Subtasks</h4>
+                    <div class="subtask-list" id="subtask-list-{{ task['id'] }}">
+                        <div class="loading">Loading subtasks...</div>
+                    </div>
+                    
+                    <form class="add-subtask-form" data-task-id="{{ task['id'] }}">
+                        <input type="text" name="title" placeholder="New subtask" required>
+                        <button type="submit" class="btn-add-small">Add</button>
+                    </form>
+                </div>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="no-tasks">No current tasks. Add one above!</p>
+    {% endif %}
+</section> -->
+
+<section class="completed-tasks">
+    <h3>Completed Tasks</h3>
+    {% if created_tasks%}
+    <ul class="task-list">
+    {% for task in created_tasks %}
+    <li class="task-item completed" data-task-id="{{ task['id'] }}">
+        <div class="task-header">
+            <div class="task-create-title">{{ task['title'] }}</div>
+            <div class="task-actions">
+                <form action="{{ url_for('uncomplete_task', task_id=task['id']) }}" method="post" class="inline-form">
+                    <button type="submit" class="btn-uncomplete"><i class="fas fa-undo"></i></button>
+                </form>
+                <form action="{{ url_for('delete_task', task_id=task['id']) }}" method="post" class="inline-form">
+                    <button type="submit" class="btn-delete"><i class="fas fa-trash"></i></button>
+                </form>
+                <span class="btn-expand"><i class="fas fa-chevron-down"></i></span>
+            </div>
+        </div>
+        
+        <div class="task-details" style="display: none;">
+            {% if task['description'] %}
+            <div class="task-description">{{ task['description'] }}</div>
+            {% endif %}
+            
+            {% if task['image_path'] %}
+            <div class="task-image">
+                <img src="{{ url_for('static', filename=task['image_path']) }}" alt="Task image">
+            </div>
+            {% endif %}
+            
+            <div class="task-date">
+                Created: {{ task['created_at'].split('.')[0].replace('T', ' ') if 'T' in task['created_at'] else task['created_at'] }}
+            </div>
+            
+            <div class="subtasks">
+                <h4>Subtasks</h4>
+                <div class="subtask-list" id="subtask-list-{{ task['id'] }}">
+                    <div class="loading">Loading subtasks...</div>
+                </div>
+            </div>
+        </div>
+    </li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if completed_tasks %}
+    <ul class="task-list">
+        <!-- {} -->
+        {% for task in completed_tasks %}
+        <li class="task-item completed" data-task-id="{{ task['id'] }}">
+            <div class="task-header">
+                <div class="task-title">{{ task['title'] }}</div>
+                <div class="task-actions">
+                    <form action="{{ url_for('uncomplete_task', task_id=task['id']) }}" method="post" class="inline-form">
+                        <button type="submit" class="btn-uncomplete"><i class="fas fa-undo"></i></button>
+                    </form>
+                    <form action="{{ url_for('delete_task', task_id=task['id']) }}" method="post" class="inline-form">
+                        <button type="submit" class="btn-delete"><i class="fas fa-trash"></i></button>
+                    </form>
+                    <span class="btn-expand"><i class="fas fa-chevron-down"></i></span>
+                </div>
+            </div>
+            
+            <div class="task-details" style="display: none;">
+                {% if task['description'] %}
+                <div class="task-description">{{ task['description'] }}</div>
+                {% endif %}
+                
+                {% if task['image_path'] %}
+                <div class="task-image">
+                    <img src="{{ url_for('static', filename=task['image_path']) }}" alt="Task image">
+                </div>
+                {% endif %}
+                
+                <div class="task-date">
+                    Created: {{ task['created_at'].split('.')[0].replace('T', ' ') if 'T' in task['created_at'] else task['created_at'] }}
+                    <br>
+                    Completed: {{ task['completed_at'].split('.')[0].replace('T', ' ') if 'T' in task['completed_at'] else task['completed_at'] }}
+                </div>
+                
+                <div class="subtasks">
+                    <h4>Subtasks</h4>
+                    <div class="subtask-list" id="subtask-list-{{ task['id'] }}">
+                        <div class="loading">Loading subtasks...</div>
+                    </div>
+                </div>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="no-tasks">No completed tasks for this period.</p>
+    {% endif %}
+</section>
+
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Toggle task details
+        $('.btn-expand').click(function() {
+            const taskItem = $(this).closest('.task-item');
+            const taskDetails = taskItem.find('.task-details');
+            const taskId = taskItem.data('task-id');
+            
+            taskDetails.slideToggle();
+            $(this).find('i').toggleClass('fa-chevron-down fa-chevron-up');
+            
+            // Load subtasks if expanding
+            if (taskDetails.is(':visible')) {
+                loadSubtasks(taskId);
+            }
+        });
+        
+        // Function to load subtasks
+        function loadSubtasks(taskId) {
+            const subtaskList = $('#subtask-list-' + taskId);
+            
+            $.getJSON('/get_subtasks/' + taskId, function(data) {
+                subtaskList.empty();
+                
+                if (data.length === 0) {
+                    subtaskList.html('<p class="no-subtasks">No subtasks</p>');
+                    return;
+                }
+                
+                const ul = $('<ul class="subtask-list"></ul>');
+                
+                data.forEach(function(subtask) {
+                    const li = $('<li class="subtask-item"></li>');
+                    
+                    // Subtask content
+                    const content = $('<div class="subtask-content"></div>');
+                    content.append('<span class="subtask-title ' + (subtask.is_completed ? 'completed' : '') + '">' + subtask.title + '</span>');
+                    
+                    // Subtask date info
+                    const dateInfo = $('<div class="subtask-date"></div>');
+                    dateInfo.text('Created: ' + formatDateTime(subtask.created_at));
+                    
+                    if (subtask.completed_at) {
+                        dateInfo.append('<br>Completed: ' + formatDateTime(subtask.completed_at));
+                    }
+                    
+                    content.append(dateInfo);
+                    li.append(content);
+                    
+                    ul.append(li);
+                });
+                
+                subtaskList.append(ul);
+            });
+        }
+        
+        // Helper function to format date and time
+        function formatDateTime(dateTimeStr) {
+            if (!dateTimeStr) return '';
+            
+            // Handle different datetime formats
+            let formattedStr = dateTimeStr;
+            if (dateTimeStr.includes('T')) {
+                formattedStr = dateTimeStr.split('.')[0].replace('T', ' ');
+            }
+            
+            return formattedStr;
+        }
+    });
+</script>
+{% endblock %}
