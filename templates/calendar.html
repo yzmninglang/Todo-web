@@ -267,7 +267,7 @@
                         <button type="submit" class="btn-uncomplete"><i class="fas fa-undo"></i></button>
                     </form>
                     <form action="{{ url_for('delete_task', task_id=task['id']) }}" method="post" class="inline-form">
-                        <button type="submit" class="btn-delete"><i class="fas fa-trash"></i></button>
+                        <button type="submit" class="btn-delete confirm-delete"><i class="fas fa-trash"></i></button>
                     </form>
                     <span class="btn-expand"><i class="fas fa-chevron-down"></i></span>
                 </div>
