@@ -31,7 +31,7 @@
                         <button type="submit" class="btn-complete"><i class="fas fa-check"></i></button>
                     </form>
                     <form action="{{ url_for('delete_task', task_id=task['id']) }}" method="post" class="inline-form">
-                        <button type="submit" class="btn-delete"><i class="fas fa-trash"></i></button>
+                        <button type="submit" class="btn-delete confirm-delete"><i class="fas fa-trash"></i></button>
                     </form>
                     <span class="btn-expand"><i class="fas fa-chevron-down"></i></span>
                 </div>
@@ -181,9 +181,13 @@
                     deleteForm.append('<button type="submit" class="btn-delete-small"><i class="fas fa-trash"></i></button>');
                     deleteForm.on('submit', function(e) {
                         e.preventDefault();
-                        $.post('/delete_subtask/' + subtask.id, function() {
+                        const isConfirmed = confirm("确定要删除这个任务吗？");
+                        if (isConfirmed) {
+                            $.post('/delete_subtask/' + subtask.id, function() {
                             loadSubtasks(taskId);
                         });
+                        }
+
                     });
                     actions.append(deleteForm);
                     
