@@ -167,7 +167,8 @@ button:hover {
 }
 
 .task-actions {
-    display: flex;
+    /* max-width: 50px; */
+    display: flow-root;
     gap: 5px;
 }
 
@@ -476,13 +477,14 @@ footer {
     }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 450px) {
     .task-header {
         flex-direction: column;
         align-items: flex-start;
     }
     
     .task-actions {
+        align-self: end;
         margin-top: 10px;
     }
     
